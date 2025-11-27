@@ -1,0 +1,567 @@
+<!--
+PNSL (Permissive Non-Sale License)
+Copyright © 2025 Christopher Forster
+
+Permission to use, copy, modify, and/or distribute this software for any purpose without charging a fee specifically for the software itself is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. You may not introduce more restrictions.
+
+THIS SOFTWARE IS PROVIDED ‘AS IS’ AND WITHOUT ANY WARRANTIES. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT OR INDIRECT LOSSES OR DAMAGES ARISING FROM THE USE OF THIS SOFTWARE.
+
+Any binary or combined work that directly incorporates PNSL-licensed code is considered a derivative work and must comply with this license. However, merely calling, linking to, or interacting with unmodified, separately distributed PNSL-licensed code does not, by itself, constitute a derivative work.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RuneScribe (JavaScript) — PNSL</title>
+  <meta name="description" content="Transcribe Latin / ASCII to Runes (Unicode)">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f5f5;
+      --fg: #222;
+      --accent: #8b4513;
+      --border: #ccc;
+    }
+
+    body {
+      margin: 0;
+      padding: 1.5rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+    }
+
+    h1, h2 {
+      color: var(--accent);
+      margin-top: 0;
+    }
+
+    .card {
+      background: white;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101010;
+        --fg: #f5f5f5;
+        --border: #444;
+      }
+      .card {
+        background: #181818;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      }
+    }
+
+    label {
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 0.25rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 6rem;
+      resize: vertical;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      font: 400 1rem/1.4 monospace;
+      box-sizing: border-box;
+    }
+
+    select, input[type="checkbox"], input[type="radio"] {
+      margin-right: 0.25rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 0.5rem;
+      align-items: center;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      min-width: 180px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.6rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+    }
+
+    button:active {
+      filter: brightness(0.9);
+    }
+
+    .output-wrapper {
+      margin-top: 0.75rem;
+    }
+
+    .output-label {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .output-box {
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      min-height: 4rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background-color: rgba(0,0,0,0.02);
+    }
+
+    .output-box.font-default {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   sans-serif;
+    }
+
+    .output-box.font-runic {
+      font-family: "Segoe UI Historic", "Noto Sans Runic", "Everson Mono",
+                   "Symbola", "FreeSerif", system-ui, sans-serif;
+      font-size: 1.8rem;
+      line-height: 1.6;
+    }
+
+    .warning {
+      color: #b00020;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .pill {
+      font-size: 0.8rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+
+    table.mapping {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 480px;
+      margin-top: 0.75rem;
+    }
+
+    table.mapping th, table.mapping td {
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.5rem;
+      text-align: center;
+    }
+
+    table.mapping th {
+      background: rgba(0,0,0,0.04);
+    }
+
+    .rune-cell {
+      font-family: "Segoe UI Historic", "Noto Sans Runic", "Everson Mono",
+                   "Symbola", "FreeSerif", system-ui, sans-serif;
+      font-size: 1.4rem;
+    }
+
+    .inline-links {
+      font-size: 0.95rem;
+    }
+
+    .note-box {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border-left: 3px solid var(--accent);
+      background-color: rgba(139, 69, 19, 0.06);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>RuneScribe (JavaScript) — PNSL</h1>
+      <p>
+        Type Latin / ASCII text below and press <strong>Scribe</strong> to
+        transcribe it into runes. This is a transcriber, not a translator:
+        it replaces characters and digraphs with their runic equivalents.
+        For details, see the
+        <a href="#explanation">explanation</a> and
+        <a href="#mapping">mapping table</a>.
+      </p>
+
+      <p class="note-box">
+        <strong>Note:</strong>
+        These symbols may require a supporting font. If characters appear as boxes,
+        install
+        <a href="https://fonts.google.com/noto/specimen/Noto+Sans+Runic"
+           target="_blank" rel="noopener">
+          Noto Sans Runic
+        </a>.
+      </p>
+
+      <div>
+        <label for="latinInput">Input text (Latin / ASCII)</label>
+        <textarea id="latinInput" aria-describedby="inputHelp">
+For nine nights, I did not sleep!</textarea>
+        <div id="inputHelp" class="inline-links">
+          Tip: You may need a font with runic support. Try “Runic friendly” below.
+        </div>
+      </div>
+
+      <div class="controls" aria-label="Options">
+        <div class="control-group">
+          <label for="fontSelect">Font</label>
+          <select id="fontSelect">
+            <option value="default">Auto (browser default)</option>
+            <option value="runic" selected>Runic friendly stack</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>Space behaviour</label>
+          <div>
+            <label>
+              <input type="radio" name="spacing" value="space" checked>
+              Normal space
+            </label><br>
+            <label>
+              <input type="radio" name="spacing" value="dot">
+              Runic single dot (᛫) between words
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Latin replacements</label>
+          <div>
+            <label><input type="checkbox" id="replaceV"> replace “v” → “w”</label><br>
+            <label><input type="checkbox" id="replaceX"> replace “x” → “ks”</label><br>
+            <label><input type="checkbox" id="replaceZ"> replace “z” → “s”</label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>&nbsp;</label>
+          <button id="scribeBtn" type="button">Scribe</button>
+        </div>
+      </div>
+
+      <div class="output-wrapper">
+        <div class="output-label">
+          <span>Runic output</span>
+          <span class="pill">Unicode encoded</span>
+        </div>
+        <div id="runeOutput"
+             class="output-box font-runic"
+             aria-live="polite"
+             aria-label="Transcribed runic text"></div>
+        <div id="warningBox" class="warning" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card" id="explanation">
+      <h2>Explanation</h2>
+      <p>
+        Historically, Germanic peoples used runic alphabets (futharks) instead
+        of the Latin alphabet. This tool shows such a runic system in action by
+        <strong>transcribing</strong> your Latin / ASCII input to Unicode runes.
+      </p>
+      <p>
+        Important points:
+      </p>
+      <ul>
+        <li>This is a <strong>transcriber</strong>, not a translator:
+          it does not change language, only script.</li>
+        <li>Runes are output as real <strong>Unicode runic characters</strong>,
+          not images.</li>
+        <li>
+          Some Latin letter sequences like <code>TH</code> and
+          <code>NG</code> become a <em>single</em> rune.
+        </li>
+        <li>
+          Numbers and most punctuation are left as-is or mapped to simple
+          runic punctuation characters.
+        </li>
+      </ul>
+      <p>
+        If you see squares or boxes instead of runes, your system font does not
+        support the Runic block. Try the “Runic friendly” font option, or
+        install a font such as “Noto Sans Runic” as noted above.
+      </p>
+    </section>
+
+    <section class="card" id="mapping">
+      <h2>Rune mapping table</h2>
+      <p>
+        This RuneScribe version uses the following character→rune mapping
+        (case-insensitive, digraphs first):
+      </p>
+
+      <h3>Digraphs</h3>
+      <table class="mapping">
+        <tr><th>Latin</th><th>Rune</th></tr>
+        <tr><td>TH</td><td class="rune-cell">ᚦ</td></tr>
+        <tr><td>NG</td><td class="rune-cell">ᛜ</td></tr>
+      </table>
+
+      <h3>Single letters (basic)</h3>
+      <table class="mapping">
+        <tr><th>Latin</th><th>Rune</th><th>Latin</th><th>Rune</th></tr>
+        <tr><td>F</td><td class="rune-cell">ᚠ</td><td>U</td><td class="rune-cell">ᚢ</td></tr>
+        <tr><td>A</td><td class="rune-cell">ᚨ</td><td>R</td><td class="rune-cell">ᚱ</td></tr>
+        <tr><td>K</td><td class="rune-cell">ᚲ</td><td>G</td><td class="rune-cell">ᚷ</td></tr>
+        <tr><td>W</td><td class="rune-cell">ᚹ</td><td>H</td><td class="rune-cell">ᚺ</td></tr>
+        <tr><td>N</td><td class="rune-cell">ᚾ</td><td>I</td><td class="rune-cell">ᛁ</td></tr>
+        <tr><td>J</td><td class="rune-cell">ᛃ</td><td>Ä</td><td class="rune-cell">ᛇ</td></tr>
+        <tr><td>P</td><td class="rune-cell">ᛈ</td><td>Z</td><td class="rune-cell">ᛉ</td></tr>
+        <tr><td>S</td><td class="rune-cell">ᛊ</td><td>T</td><td class="rune-cell">ᛏ</td></tr>
+        <tr><td>B</td><td class="rune-cell">ᛒ</td><td>E</td><td class="rune-cell">ᛖ</td></tr>
+        <tr><td>M</td><td class="rune-cell">ᛗ</td><td>L</td><td class="rune-cell">ᛚ</td></tr>
+        <tr><td>D</td><td class="rune-cell">ᛞ</td><td>O</td><td class="rune-cell">ᛟ</td></tr>
+      </table>
+
+      <h3>Extended letters</h3>
+      <table class="mapping">
+        <tr><th>Latin</th><th>Rune</th><th>Latin</th><th>Rune</th></tr>
+        <tr><td>C</td><td class="rune-cell">ᚳ</td><td>Q</td><td class="rune-cell">ᛢ</td></tr>
+        <tr><td>V</td><td class="rune-cell">ᚡ</td><td>X</td><td class="rune-cell">ᛪ</td></tr>
+        <tr><td>Y</td><td class="rune-cell">ᚣ</td><td>Å</td><td class="rune-cell">ᚩ</td></tr>
+        <tr><td>Ö</td><td class="rune-cell">ᚯ</td><td colspan="2"></td></tr>
+      </table>
+
+      <p style="margin-top:0.75rem;">
+        Punctuation:
+        <code>.</code>, <code>,</code>, <code>;</code>, <code>:</code> →
+        runic multiple punctuation <span class="rune-cell">᛬</span>,
+        <code>-</code>, <code>!</code>, <code>?</code> →
+        runic cross punctuation <span class="rune-cell">᛭</span>.<br>
+        Optionally, spaces can be shown as the runic single dot
+        <span class="rune-cell">᛫</span>.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    // --- Core RuneScribe engine (JavaScript) ------------------------------
+
+    // Single-letter rune mapping (expects UPPERCASE keys)
+    const RUNE_MAP_SINGLE = {
+      "F": "ᚠ",
+      "U": "ᚢ",
+      "A": "ᚨ",
+      "R": "ᚱ",
+      "K": "ᚲ",
+      "G": "ᚷ",
+      "W": "ᚹ",
+      "H": "ᚺ",
+      "N": "ᚾ",
+      "I": "ᛁ",
+      "J": "ᛃ",
+      "Ä": "ᛇ",
+      "P": "ᛈ",
+      "Z": "ᛉ",
+      "S": "ᛊ",
+      "T": "ᛏ",
+      "B": "ᛒ",
+      "E": "ᛖ",
+      "M": "ᛗ",
+      "L": "ᛚ",
+      "D": "ᛞ",
+      "O": "ᛟ",
+
+      // Extended:
+      "C": "ᚳ",
+      "Q": "ᛢ",
+      "V": "ᚡ",
+      "X": "ᛪ",
+      "Y": "ᚣ",
+      "Å": "ᚩ",
+      "Ö": "ᚯ"
+    };
+
+    // Digraphs (match first)
+    const RUNE_MAP_DIGRAPH = [
+      { pattern: "TH", rune: "ᚦ" },
+      { pattern: "NG", rune: "ᛜ" }
+    ];
+
+    // Runic punctuation
+    const RUNE_SINGLE_DOT = "᛫"; // space (optional)
+    const RUNE_MULTI_PUNCT = "᛬"; // . , ; :
+    const RUNE_CROSS_PUNCT = "᛭"; // - ! ?
+
+    /**
+     * Transcribe Latin/ASCII text into runes using the mapping above.
+     * @param {string} text - Input text (any case)
+     * @param {object} options - { spacingMode, replaceV, replaceX, replaceZ }
+     * @returns {{output: string, unknown: string[]}}
+     */
+    function transcribeToRunes(text, options) {
+      const spacingMode = options.spacingMode || "space"; // "space" | "dot"
+      const replaceV = !!options.replaceV;
+      const replaceX = !!options.replaceX;
+      const replaceZ = !!options.replaceZ;
+
+      // Normalize and uppercase for pattern matching
+      let t = text.normalize("NFC").toUpperCase();
+
+      // Character-level replacement options (like original RuneScribe)
+      if (replaceV) t = t.replace(/V/g, "W");
+      if (replaceX) t = t.replace(/X/g, "KS");
+      if (replaceZ) t = t.replace(/Z/g, "S");
+
+      let result = "";
+      const unknownChars = new Set();
+
+      for (let i = 0; i < t.length; i++) {
+        const ch = t[i];
+
+        // Preserve line breaks
+        if (ch === "\n") {
+          result += "\n";
+          continue;
+        }
+
+        // Whitespace -> either normal space or runic single dot
+        if (/\s/.test(ch)) {
+          result += (spacingMode === "dot" ? RUNE_SINGLE_DOT : " ");
+          continue;
+        }
+
+        // Digraphs (TH, NG, etc.)
+        const digraph = t.slice(i, i + 2);
+        let handledDigraph = false;
+        for (const d of RUNE_MAP_DIGRAPH) {
+          if (digraph === d.pattern) {
+            result += d.rune;
+            i++; // skip next char
+            handledDigraph = true;
+            break;
+          }
+        }
+        if (handledDigraph) continue;
+
+        // Runic punctuation mappings
+        if (".,;:".includes(ch)) {
+          result += RUNE_MULTI_PUNCT;
+          continue;
+        }
+        if ("-!?".includes(ch)) {
+          result += RUNE_CROSS_PUNCT;
+          continue;
+        }
+
+        // Single-letter mapping
+        const rune = RUNE_MAP_SINGLE[ch];
+        if (rune) {
+          result += rune;
+        } else {
+          // Not mapped: keep the original character as-is
+          result += ch;
+          // Track only "interesting" unknowns
+          if (!/\s/.test(ch) && ch !== "\n") {
+            unknownChars.add(ch);
+          }
+        }
+      }
+
+      return {
+        output: result,
+        unknown: Array.from(unknownChars)
+      };
+    }
+
+    // --- UI wiring --------------------------------------------------------
+
+    const latinInput = document.getElementById("latinInput");
+    const scribeBtn = document.getElementById("scribeBtn");
+    const runeOutput = document.getElementById("runeOutput");
+    const warningBox = document.getElementById("warningBox");
+    const fontSelect = document.getElementById("fontSelect");
+    const replaceVChk = document.getElementById("replaceV");
+    const replaceXChk = document.getElementById("replaceX");
+    const replaceZChk = document.getElementById("replaceZ");
+
+    function getSpacingMode() {
+      const radios = document.querySelectorAll('input[name="spacing"]');
+      for (const r of radios) {
+        if (r.checked) return r.value;
+      }
+      return "space";
+    }
+
+    function runScribe() {
+      const options = {
+        spacingMode: getSpacingMode(),
+        replaceV: replaceVChk.checked,
+        replaceX: replaceXChk.checked,
+        replaceZ: replaceZChk.checked
+      };
+
+      const { output, unknown } = transcribeToRunes(latinInput.value, options);
+      runeOutput.textContent = output || "";
+
+      if (!output.trim()) {
+        warningBox.textContent = "Nothing to transcribe (no mappable characters).";
+      } else if (unknown.length > 0) {
+        warningBox.textContent =
+          "Characters left unchanged (no rune mapping): " +
+          unknown.join(" ");
+      } else {
+        warningBox.textContent = "";
+      }
+    }
+
+    // Font selection
+    function updateFont() {
+      runeOutput.classList.remove("font-default", "font-runic");
+      const value = fontSelect.value;
+      if (value === "runic") {
+        runeOutput.classList.add("font-runic");
+      } else {
+        runeOutput.classList.add("font-default");
+      }
+    }
+
+    // Initial font + initial transcription
+    updateFont();
+    runScribe();
+
+    scribeBtn.addEventListener("click", runScribe);
+    fontSelect.addEventListener("change", updateFont);
+
+    // Enter / Ctrl+Enter shortcuts
+    latinInput.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        runScribe();
+      }
+    });
+  </script>
+</body>
+</html>
